@@ -27,7 +27,7 @@ import {
   ShoppingCart,
   FavoriteBorder,
   Person,
-  Eco,
+  Nature,
   KeyboardArrowDown,
   Close
 } from '@mui/icons-material';
@@ -161,7 +161,7 @@ export const NavigationGlass = () => {
       <Box sx={{ px: 2, pb: 2 }}>
         <Logo component={Link} to="/" onClick={() => setMobileOpen(false)}>
           <LogoIcon>
-            <Eco sx={{ color: 'white', fontSize: '1.5rem' }} />
+            <Nature sx={{ color: 'white', fontSize: '1.5rem' }} />
           </LogoIcon>
           <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
             Better Being
@@ -208,7 +208,7 @@ export const NavigationGlass = () => {
           {/* Logo */}
           <Logo component={Link} to="/">
             <LogoIcon>
-              <Eco sx={{ color: 'white', fontSize: '1.5rem' }} />
+              <Nature sx={{ color: 'white', fontSize: '1.5rem' }} />
             </LogoIcon>
             <Typography 
               variant="h6" 

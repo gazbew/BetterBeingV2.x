@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { styled } from '@mui/material/styles';
 import { Box, Typography, Button, Stack, Container, Chip } from '@mui/material';
-import { ArrowForward, Star, Sparkles, PlayArrow } from '@mui/icons-material';
+import { ArrowForward, Star, AutoAwesome, PlayArrow } from '@mui/icons-material';
 
 const HeroContainer = styled(Box)(({ theme }) => ({
   position: 'relative',
@@ -148,7 +148,7 @@ export const HeroSectionEnhanced = () => {
               py: 1,
               px: 2
             }}
-            deleteIcon={<Sparkles sx={{ color: 'primary.main' }} />}
+            deleteIcon={<AutoAwesome sx={{ color: 'primary.main' }} />}
             onDelete={() => {}}
           />
 

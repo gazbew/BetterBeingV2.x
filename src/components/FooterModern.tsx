@@ -18,7 +18,7 @@ import {
   Alert
 } from '@mui/material';
 import {
-  Eco,
+  Nature,
   Email,
   Phone,
   LocationOn,
@@ -318,7 +318,7 @@ export const FooterModern = () => {
                           justifyContent: 'center'
                         }}
                       >
-                        <Eco sx={{ color: 'white', fontSize: '1.8rem' }} />
+                        <Nature sx={{ color: 'white', fontSize: '1.8rem' }} />
                       </Box>
                       <Box>
                         <Typography variant="h5" sx={{ fontWeight: 700 }}>
