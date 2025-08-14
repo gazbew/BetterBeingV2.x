@@ -159,39 +159,39 @@ export const NavigationGlass = () => {
   const mobileDrawerContent = (
     <Box sx={{ pt: 2, background: `linear-gradient(135deg, ${theme.palette.primary.main}F0, #7BA05BE0)`, height: '100%' }}>
       <Box sx={{ px: 2, pb: 2 }}>
-        <Logo component={Link} to="/" onClick={() => setMobileOpen(false)}>
-          <LogoIcon>
-            <Nature sx={{ color: 'white', fontSize: '1.5rem' }} />
-          </LogoIcon>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
-            Better Being
-          </Typography>
-        </Logo>
+        <Link to="/" onClick={() => setMobileOpen(false)} style={{ textDecoration: 'none' }}>
+          <Logo>
+            <LogoIcon>
+              <Nature sx={{ color: 'white', fontSize: '1.5rem' }} />
+            </LogoIcon>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
+              Better Being
+            </Typography>
+          </Logo>
+        </Link>
       </Box>
       
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
       
       <List>
         {navigationItems.map((item) => (
-          <ListItem
-            key={item.label}
-            component={Link}
-            to={item.path}
-            onClick={() => setMobileOpen(false)}
-            sx={{
-              color: 'white',
-              '&:hover': {
-                background: 'rgba(255,255,255,0.1)'
-              }
-            }}
-          >
-            <ListItemText 
-              primary={item.label}
+          <Link key={item.label} to={item.path} onClick={() => setMobileOpen(false)} style={{ textDecoration: 'none' }}>
+            <ListItem
+              sx={{
+                color: 'white',
+                '&:hover': {
+                  background: 'rgba(255,255,255,0.1)'
+                }
+              }}
+            >
+              <ListItemText 
+                primary={item.label}
               primaryTypographyProps={{
                 fontWeight: 400
               }}
             />
-          </ListItem>
+            </ListItem>
+          </Link>
         ))}
       </List>
     </Box>
@@ -206,33 +206,33 @@ export const NavigationGlass = () => {
       >
         <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, md: 4 } }}>
           {/* Logo */}
-          <Logo component={Link} to="/">
-            <LogoIcon>
-              <Nature sx={{ color: 'white', fontSize: '1.5rem' }} />
-            </LogoIcon>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 700,
-                color: scrolled ? 'text.primary' : 'white',
-                transition: 'color 0.3s ease'
-              }}
-            >
-              Better Being
-            </Typography>
-          </Logo>
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <Logo>
+              <LogoIcon>
+                <Nature sx={{ color: 'white', fontSize: '1.5rem' }} />
+              </LogoIcon>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 700,
+                  color: scrolled ? 'text.primary' : 'white',
+                  transition: 'color 0.3s ease'
+                }}
+              >
+                Better Being
+              </Typography>
+            </Logo>
+          </Link>
 
           {/* Desktop Navigation */}
           {!isMobile && (
             <Stack direction="row" spacing={1} alignItems="center">
               {navigationItems.map((item) => (
-                <NavButton
-                  key={item.label}
-                  component={Link}
-                  to={item.path}
-                >
-                  {item.label}
-                </NavButton>
+                <Link key={item.label} to={item.path} style={{ textDecoration: 'none' }}>
+                  <NavButton>
+                    {item.label}
+                  </NavButton>
+                </Link>
               ))}
             </Stack>
           )}
