@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Wellness Brand Colors */
+    --background: 26 30% 97%;
+    --foreground: 156 28% 15%;
+
+    --card: 26 30% 98%;
+    --card-foreground: 156 28% 15%;
+
+    --popover: 26 30% 98%;
+    --popover-foreground: 156 28% 15%;
+
+    /* Deep Forest Green - Premium, trustworthy, natural */
+    --primary: 156 45% 25%;
+    --primary-foreground: 26 30% 97%;
+    
+    /* Warm Earth Tones */
+    --secondary: 35 40% 85%;
+    --secondary-foreground: 156 28% 15%;
+
+    --muted: 35 25% 90%;
+    --muted-foreground: 156 15% 45%;
+
+    /* Golden Accent - Premium, healing, energy */
+    --accent: 45 95% 65%;
+    --accent-foreground: 156 28% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 26 30% 97%;
+
+    --border: 35 20% 85%;
+    --input: 35 20% 90%;
+    --ring: 156 45% 35%;
+
+    --radius: 0.75rem;
+
+    /* Wellness Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(156 45% 25%), hsl(156 35% 35%), hsl(45 85% 55%));
+    --gradient-wellness: linear-gradient(180deg, hsl(156 25% 95%), hsl(45 40% 92%));
+    --gradient-premium: radial-gradient(ellipse at top, hsl(45 95% 65% / 0.3), transparent);
+    
+    /* Wellness Shadows */
+    --shadow-wellness: 0 10px 40px -10px hsl(156 45% 25% / 0.3);
+    --shadow-premium: 0 20px 60px -10px hsl(45 95% 65% / 0.4);
+    --shadow-floating: 0 25px 50px -12px hsl(156 45% 25% / 0.25);
+    
+    /* Animation Variables */
+    --transition-wellness: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-smooth: all 0.3s ease-out;
+    --bounce-gentle: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --sidebar-background: 26 30% 96%;
+    --sidebar-foreground: 156 28% 25%;
+    --sidebar-primary: 156 45% 25%;
+    --sidebar-primary-foreground: 26 30% 97%;
+    --sidebar-accent: 35 25% 88%;
+    --sidebar-accent-foreground: 156 28% 15%;
+    --sidebar-border: 35 20% 80%;
+    --sidebar-ring: 156 45% 35%;
+  }
+
+  .dark {
+    /* Dark Wellness Theme */
+    --background: 156 25% 8%;
+    --foreground: 35 40% 95%;
+
+    --card: 156 25% 10%;
+    --card-foreground: 35 40% 95%;
+
+    --popover: 156 25% 10%;
+    --popover-foreground: 35 40% 95%;
+
+    --primary: 45 90% 60%;
+    --primary-foreground: 156 25% 8%;
+
+    --secondary: 156 20% 20%;
+    --secondary-foreground: 35 40% 95%;
+
+    --muted: 156 15% 18%;
+    --muted-foreground: 35 20% 65%;
+
+    --accent: 45 85% 55%;
+    --accent-foreground: 156 25% 8%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 35 40% 95%;
+
+    --border: 156 15% 25%;
+    --input: 156 15% 25%;
+    --ring: 45 85% 55%;
+    
+    /* Dark Wellness Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(156 25% 8%), hsl(156 20% 15%), hsl(45 70% 40%));
+    --gradient-wellness: linear-gradient(180deg, hsl(156 20% 12%), hsl(45 30% 15%));
+    --gradient-premium: radial-gradient(ellipse at top, hsl(45 85% 55% / 0.2), transparent);
+    
+    --sidebar-background: 156 25% 6%;
+    --sidebar-foreground: 35 40% 90%;
+    --sidebar-primary: 45 85% 55%;
+    --sidebar-primary-foreground: 156 25% 8%;
+    --sidebar-accent: 156 15% 15%;
+    --sidebar-accent-foreground: 35 40% 90%;
+    --sidebar-border: 156 15% 20%;
+    --sidebar-ring: 45 85% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

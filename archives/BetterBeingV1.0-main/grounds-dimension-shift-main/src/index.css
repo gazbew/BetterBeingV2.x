@@ -1,0 +1,445 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading uppercase;
+    letter-spacing: 0.088em; /* 88pt letter spacing as per Brand Bible */
+  }
+  p, span, li, blockquote, div, body {
+    @apply font-body;
+    letter-spacing: 0; /* 0pt letter spacing for body text */
+  }
+  :root {
+    /* Better Being Brand Bible Colors - EXACT VALUES */
+    /* -------------------------------------------------- */
+    --bb-mahogany: 17 100% 37%;           /* #BB4500 - Main brand color */
+    --bb-citron: 60 51% 50%;              /* #C4C240 - Secondary, pops at large scale */
+    --bb-payne-gray: 229 6% 42%;          /* #626675 - Payne Gray */
+    --bb-champagne: 39 71% 87%;           /* #F9E7C9 - Muted/stationary */
+    --bb-black-bean: 0 60% 10%;           /* #280B0B - Alt text color */
+
+    /* Tone scales (tints & shades) generated from brand colours */
+    /* Mahogany scale */
+    --primary-50: 17 100% 96%;
+    --primary-100: 17 100% 90%;
+    --primary-200: 17 100% 80%;
+    --primary-300: 17 100% 70%;
+    --primary-400: 17 100% 55%;
+    --primary-500: 17 100% 45%; /* base +8% lightness */
+    --primary-600: 17 100% 37%; /* base */
+    --primary-700: 17 85% 30%;
+    --primary-800: 17 75% 22%;
+    --primary-900: 17 70% 15%;
+
+    /* Payne Gray scale */
+    --secondary-50: 229 6% 97%;
+    --secondary-100: 229 6% 92%;
+    --secondary-200: 229 6% 82%;
+    --secondary-300: 229 6% 72%;
+    --secondary-400: 229 6% 62%;
+    --secondary-500: 229 6% 52%;
+    --secondary-600: 229 6% 42%;  /* base */
+    --secondary-700: 229 6% 32%;
+    --secondary-800: 229 6% 22%;
+    --secondary-900: 229 6% 12%;
+
+    /* Citron scale */
+    --accent-50: 60 51% 95%;
+    --accent-100: 60 51% 88%;
+    --accent-200: 60 51% 78%;
+    --accent-300: 60 51% 68%;
+    --accent-400: 60 51% 60%;
+    --accent-500: 60 51% 50%; /* base */
+    --accent-600: 60 51% 42%;
+    --accent-700: 60 51% 34%;
+    --accent-800: 60 51% 26%;
+    --accent-900: 60 51% 18%;
+
+    /* Neutral scale derived from Black Bean */
+    --neutral-50: 0 0% 99%;
+    --neutral-100: 0 0% 96%;
+    --neutral-200: 0 0% 90%;
+    --neutral-300: 0 0% 80%;
+    --neutral-400: 0 0% 60%;
+    --neutral-500: 0 0% 45%;
+    --neutral-600: 0 60% 10%; /* base */
+    --neutral-700: 0 60% 8%;
+    --neutral-800: 0 60% 6%;
+    --neutral-900: 0 60% 4%;
+    
+    /* PROFESSIONAL COLOR SYSTEM - High Contrast & Clear Hierarchy */
+    --background: 0 0% 100%;              /* Pure white background for maximum clarity */
+    --foreground: 0 60% 10%;              /* Black Bean - strong text contrast */
+
+    --card: 0 0% 100%;                    /* White cards with shadows for depth */
+    --card-foreground: 0 60% 10%;         /* Black Bean text */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 60% 10%;
+
+    /* Primary - Mahogany for brand recognition */
+    --primary: var(--primary-600);         /* Better Being Mahogany */
+    --primary-foreground: 0 0% 100%;      /* White on Mahogany for contrast */
+
+    /* Secondary - Payne Gray for professional look */
+    --secondary: var(--secondary-600);     /* Payne Gray - sophisticated */
+    --secondary-foreground: 0 0% 100%;    /* White on gray */
+
+    --muted: 0 0% 96%;                    /* Very light gray for backgrounds */
+    --muted-foreground: 229 6% 35%;       /* Dark gray for muted text */
+
+    /* Accent - Citron for strategic highlights ONLY */
+    --accent: var(--accent-500);           /* Citron - use sparingly */
+    --accent-foreground: 0 60% 10%;       /* Black Bean on Citron */
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;                   /* Clean gray borders */
+    --input: 0 0% 98%;                    /* Nearly white inputs */
+    --ring: 17 100% 37%;                  /* Mahogany focus ring */
+
+    --radius: 0.375rem;                   /* Slightly rounded for modern look */
+
+    /* CLEAN GRADIENTS - Subtle and Professional */
+    --gradient-hero: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 98%));
+    --gradient-wellness: linear-gradient(180deg, hsl(0 0% 100%), hsl(39 71% 98%));
+    --gradient-premium: linear-gradient(135deg, hsl(17 100% 37%), hsl(17 100% 42%));
+    --gradient-subtle: linear-gradient(180deg, transparent, hsl(0 0% 96% / 0.5));
+    
+    /* PROFESSIONAL SHADOWS - Crisp and Clean */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    /* Animation Variables */
+    --transition-wellness: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-smooth: all 0.3s ease-out;
+    --bounce-gentle: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --sidebar-background: 39 71% 97%;
+    --sidebar-foreground: 0 60% 10%;
+    --sidebar-primary: 17 100% 37%;
+    --sidebar-primary-foreground: 39 71% 87%;
+    --sidebar-accent: 60 51% 50%;
+    --sidebar-accent-foreground: 0 60% 10%;
+    --sidebar-border: 39 30% 85%;
+    --sidebar-ring: 17 100% 37%;
+  }
+
+  .dark {
+    /* Better Being Dark Theme */
+    --background: 0 60% 8%;                /* Dark Black Bean */
+    --foreground: 39 71% 87%;             /* Champagne for dark mode text */
+
+    --card: 0 40% 12%;
+    --card-foreground: 39 71% 87%;
+
+    --popover: 0 40% 12%;
+    --popover-foreground: 39 71% 87%;
+
+    --primary: 17 90% 45%;                /* Slightly brighter Mahogany for dark */
+    --primary-foreground: 39 71% 87%;
+
+    --secondary: 60 45% 55%;              /* Adjusted Citron for dark mode */
+    --secondary-foreground: 0 60% 10%;
+
+    --muted: 0 30% 18%;
+    --muted-foreground: 229 6% 60%;
+
+    --accent: 60 45% 55%;                 /* Citron accent in dark */
+    --accent-foreground: 0 60% 10%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 39 71% 87%;
+
+    --border: 0 30% 20%;
+    --input: 0 30% 15%;
+    --ring: 17 90% 45%;
+    
+    /* Dark Better Being Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(0 60% 8%), hsl(17 60% 25%), hsl(39 40% 25%));
+    --gradient-wellness: linear-gradient(180deg, hsl(0 60% 10%), hsl(0 40% 15%));
+    --gradient-premium: radial-gradient(ellipse at top, hsl(60 45% 55% / 0.1), transparent);
+    --gradient-earthy: linear-gradient(120deg, hsl(17 90% 45% / 0.05), hsl(60 45% 55% / 0.05));
+    
+    --sidebar-background: 0 60% 6%;
+    --sidebar-foreground: 39 71% 87%;
+    --sidebar-primary: 17 90% 45%;
+    --sidebar-primary-foreground: 39 71% 87%;
+    --sidebar-accent: 60 45% 55%;
+    --sidebar-accent-foreground: 0 60% 10%;
+    --sidebar-border: 0 30% 18%;
+    --sidebar-ring: 17 90% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Professional Design System - Premium Effects & Animations */
+
+/* Advanced Gradient Animations */
+@keyframes gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes float-smooth {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-10px) rotate(1deg); }
+  66% { transform: translateY(-5px) rotate(-1deg); }
+}
+
+@keyframes reveal {
+  from { 
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Micro-interactions & Smooth Transitions */
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Premium Glass Morphism */
+.glass {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Sophisticated Card Hover Effects */
+.card-hover {
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.card-hover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    hsl(var(--accent) / 0) 0%,
+    hsl(var(--accent) / 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.card-hover:hover::before {
+  opacity: 1;
+}
+
+.card-hover:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 20px 40px -15px hsl(var(--primary) / 0.15),
+    0 10px 20px -10px hsl(var(--accent) / 0.1);
+}
+
+/* Premium Button Styles */
+.btn-premium {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.btn-premium::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-premium:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Advanced Typography Effects */
+.text-gradient {
+  background: linear-gradient(135deg, 
+    hsl(var(--primary)) 0%, 
+    hsl(var(--accent)) 50%,
+    hsl(var(--secondary)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: gradient 4s ease infinite;
+}
+
+/* Sophisticated Loading States */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.8) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Premium Focus States */
+*:focus {
+  outline: none;
+  box-shadow: 
+    0 0 0 2px hsl(var(--background)),
+    0 0 0 4px hsl(var(--accent) / 0.3);
+}
+
+*:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
+}
+
+/* Smooth Reveal Animations */
+.reveal {
+  animation: reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.reveal-delay-1 {
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+
+.reveal-delay-2 {
+  animation-delay: 0.2s;
+  opacity: 0;
+}
+
+.reveal-delay-3 {
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+
+/* Premium Scroll Indicators */
+.scroll-indicator {
+  animation: float-smooth 3s ease-in-out infinite;
+}
+
+/* Professional Selection Styles */
+::selection {
+  background: hsl(var(--accent) / 0.3);
+  color: hsl(var(--foreground));
+}
+
+/* Custom Scrollbar Design */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.5);
+  border-radius: 5px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.7);
+}
+
+/* Premium Backdrop Effects */
+.backdrop-premium {
+  position: relative;
+}
+
+.backdrop-premium::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: radial-gradient(
+    circle at center,
+    hsl(var(--accent) / 0.1) 0%,
+    transparent 70%
+  );
+  animation: pulse-glow 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Professional Badge Animation */
+.badge-float {
+  animation: float-smooth 4s ease-in-out infinite;
+}
+
+/* High-end Shadow System */
+.shadow-elegant {
+  box-shadow: 
+    0 2px 4px hsl(var(--foreground) / 0.02),
+    0 4px 8px hsl(var(--foreground) / 0.03),
+    0 8px 16px hsl(var(--foreground) / 0.04),
+    0 16px 32px hsl(var(--foreground) / 0.05);
+}
+
+/* Accessibility Enhancements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

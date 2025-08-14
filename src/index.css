@@ -1,0 +1,254 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=League+Spartan:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  margin: auto;
+}
+
+@layer base {
+  :root {
+    /* Better Being Brand Colors */
+    --background: 45 25% 97%;
+    --foreground: 19 75% 15%;
+
+    --card: 45 25% 98%;
+    --card-foreground: 19 75% 15%;
+
+    --popover: 45 25% 98%;
+    --popover-foreground: 19 75% 15%;
+
+    /* Better Being Orange - Primary brand color */
+    --primary: 19 75% 45%;
+    --primary-foreground: 45 25% 97%;
+    
+    /* Champagne Tones - Secondary */
+    --secondary: 45 25% 85%;
+    --secondary-foreground: 19 75% 15%;
+
+    --muted: 210 10% 85%;
+    --muted-foreground: 210 10% 45%;
+
+    /* Fresh Green Accent - From brand bible */
+    --accent: 82 35% 45%;
+    --accent-foreground: 19 75% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 26 30% 97%;
+
+    --border: 45 25% 85%;
+    --input: 45 25% 90%;
+    --ring: 19 75% 45%;
+
+    --radius: 0.75rem;
+
+    /* Better Being Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(19 75% 45%), hsl(19 65% 55%), hsl(82 35% 65%));
+    --gradient-wellness: linear-gradient(180deg, hsl(45 25% 95%), hsl(19 75% 92%));
+    --gradient-premium: radial-gradient(ellipse at top, hsl(19 75% 45% / 0.3), transparent);
+    
+    /* Better Being Shadows */
+    --shadow-wellness: 0 10px 40px -10px hsl(19 75% 45% / 0.3);
+    --shadow-premium: 0 20px 60px -10px hsl(19 75% 45% / 0.4);
+    --shadow-floating: 0 25px 50px -12px hsl(156 45% 25% / 0.25);
+    
+    /* Animation Variables */
+    --transition-wellness: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-smooth: all 0.3s ease-out;
+    --bounce-gentle: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --sidebar-background: 26 30% 96%;
+    --sidebar-foreground: 156 28% 25%;
+    --sidebar-primary: 156 45% 25%;
+    --sidebar-primary-foreground: 26 30% 97%;
+    --sidebar-accent: 35 25% 88%;
+    --sidebar-accent-foreground: 156 28% 15%;
+    --sidebar-border: 35 20% 80%;
+    --sidebar-ring: 156 45% 35%;
+  }
+
+  .dark {
+    /* Dark Wellness Theme */
+    --background: 156 25% 8%;
+    --foreground: 35 40% 95%;
+
+    --card: 156 25% 10%;
+    --card-foreground: 35 40% 95%;
+
+    --popover: 156 25% 10%;
+    --popover-foreground: 35 40% 95%;
+
+    --primary: 45 90% 60%;
+    --primary-foreground: 156 25% 8%;
+
+    --secondary: 156 20% 20%;
+    --secondary-foreground: 35 40% 95%;
+
+    --muted: 156 15% 18%;
+    --muted-foreground: 35 20% 65%;
+
+    --accent: 45 85% 55%;
+    --accent-foreground: 156 25% 8%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 35 40% 95%;
+
+    --border: 156 15% 25%;
+    --input: 156 15% 25%;
+    --ring: 45 85% 55%;
+    
+    /* Dark Wellness Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(156 25% 8%), hsl(156 20% 15%), hsl(45 70% 40%));
+    --gradient-wellness: linear-gradient(180deg, hsl(156 20% 12%), hsl(45 30% 15%));
+    --gradient-premium: radial-gradient(ellipse at top, hsl(45 85% 55% / 0.2), transparent);
+    
+    --sidebar-background: 156 25% 6%;
+    --sidebar-foreground: 35 40% 90%;
+    --sidebar-primary: 45 85% 55%;
+    --sidebar-primary-foreground: 156 25% 8%;
+    --sidebar-accent: 156 15% 15%;
+    --sidebar-accent-foreground: 35 40% 90%;
+    --sidebar-border: 156 15% 20%;
+    --sidebar-ring: 45 85% 55%;
+  }
+}
+
+/* Modern Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.8s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.8s ease-out;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1s;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'League Spartan', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Playfair Display', serif;
+  }
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.8);
+}
