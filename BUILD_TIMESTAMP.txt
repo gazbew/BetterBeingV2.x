@@ -1,0 +1,4 @@
+Build timestamp: 2025-01-14T14:30:00Z
+LinkWithRef fixes applied
+Navigation components updated to remove ref forwarding conflicts
+Force rebuild to clear deployment cache
