@@ -2,11 +2,12 @@ import { Toaster } from "./components/ui/toaster";
 import { Toaster as Sonner } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Suspense, lazy } from "react";
 import { Skeleton } from "./components/ui/skeleton";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -38,6 +39,7 @@ const Sleep = lazy(() => import("./pages/Sleep"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const OrderConfirmation = lazy(() => import("./pages/OrderConfirmation"));
 import EnterpriseNavigation from "@/components/navbar/EnterpriseNavigation";
+import { devLog } from './utils/logger';
 
 // Loading component for Suspense
 const PageLoader = () => (
@@ -52,16 +54,22 @@ const PageLoader = () => (
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <CartProvider>
-        <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+// Debug: Log when App module is evaluated (removed in production)
+devLog('App.tsx: module evaluated');
+
+const App = () => {
+  devLog('App.tsx: App render start');
+  return (
+    <ErrorBoundary level="critical">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <CartProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <ErrorBoundary level="page">
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/colortest" element={<ColorTest />} />
               <Route path="/basictest" element={<BasicTest />} />
@@ -92,15 +100,17 @@ const App = () => (
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
 
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </TooltipProvider>
-    </CartProvider>
-  </AuthProvider>
-</QueryClientProvider>
-);
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
+            </TooltipProvider>
+          </CartProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;

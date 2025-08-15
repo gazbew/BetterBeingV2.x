@@ -20,14 +20,19 @@ const MIGRATIONS = [
     name: 'initial_schema',
     description: 'Create initial database schema',
     sql: 'schema.sql'
+  },
+  {
+    version: '002',
+    name: 'performance_indexes',
+    description: 'Add performance optimization indexes',
+    sql: 'migrations/001_performance_indexes.sql'
+  },
+  {
+    version: '003',
+    name: 'full_text_search',
+    description: 'Add full-text search capabilities',
+    sql: 'migrations/002_full_text_search.sql'
   }
-  // Add more migrations here as needed
-  // {
-  //   version: '002', 
-  //   name: 'add_reviews_table',
-  //   description: 'Add product reviews functionality',
-  //   sql: 'migrations/002_add_reviews.sql'
-  // }
 ];
 
 /**

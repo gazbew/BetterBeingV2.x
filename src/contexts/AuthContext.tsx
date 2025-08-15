@@ -47,23 +47,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing token on mount
+  // Check for existing authentication on mount
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        try {
-          // Verify token and get user data
-          const response = await api.request<{ user: User }>('/users/verify');
-          if (response.success && response.data) {
-            setUser(response.data.user);
-          } else {
-            localStorage.removeItem('auth_token');
+      try {
+        // First, try to verify using HTTP-only cookies (secure method)
+        const response = await api.request<{ user: User }>('/users/verify');
+        if (response.success && response.data) {
+          setUser(response.data.user);
+        } else {
+          // Fallback: check localStorage for backward compatibility
+          const token = localStorage.getItem('auth_token');
+          if (token) {
+            try {
+              // If localStorage token exists, verify it but move to secure cookies
+              const legacyResponse = await api.request<{ user: User }>('/users/verify');
+              if (legacyResponse.success && legacyResponse.data) {
+                setUser(legacyResponse.data.user);
+                // Clear localStorage token as we're now using secure cookies
+                localStorage.removeItem('auth_token');
+              } else {
+                localStorage.removeItem('auth_token');
+              }
+            } catch (error) {
+              console.error('Legacy token verification failed:', error);
+              localStorage.removeItem('auth_token');
+            }
           }
-        } catch (error) {
-          console.error('Token verification failed:', error);
-          localStorage.removeItem('auth_token');
         }
+      } catch (error) {
+        console.error('Authentication initialization failed:', error);
+        // Clear any legacy tokens
+        localStorage.removeItem('auth_token');
       }
       setIsLoading(false);
     };
@@ -77,9 +92,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await api.login({ email, password });
       
       if (response.success && response.data) {
-        const { user: userData, token } = response.data;
-        localStorage.setItem('auth_token', token);
+        const { user: userData } = response.data;
+        // Server now sets secure HTTP-only cookie automatically
+        // No need to manually store token in localStorage
         setUser(userData);
+        
+        // Clear any legacy localStorage tokens
+        localStorage.removeItem('auth_token');
+        
         toast.success('Welcome back!');
         return true;
       } else {
@@ -101,9 +121,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await api.register(userData);
       
       if (response.success && response.data) {
-        const { user: newUser, tokens } = response.data;
-        localStorage.setItem('auth_token', tokens.accessToken);
+        const { user: newUser } = response.data;
+        // Server now sets secure HTTP-only cookie automatically
+        // No need to manually store token in localStorage
         setUser(newUser);
+        
+        // Clear any legacy localStorage tokens
+        localStorage.removeItem('auth_token');
+        
         toast.success('Account created successfully!');
         return true;
       } else {
@@ -119,10 +144,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('auth_token');
-    setUser(null);
-    toast.success('Logged out successfully');
+  const logout = async () => {
+    try {
+      // Call secure logout endpoint to clear HTTP-only cookie
+      await api.request('/users/logout', {
+        method: 'POST'
+      });
+      
+      // Clear any legacy localStorage tokens
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state even if server call fails
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      toast.success('Logged out successfully');
+    }
   };
 
   const refreshUser = async () => {

@@ -1,11 +1,27 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+import type {
+  User,
+  Product,
+  Order,
+  Cart,
+  ProductCategory,
+  AuthResponse,
+  LoginCredentials,
+  RegisterData,
+  SearchFilters,
+  SearchResult,
+  APIResponse,
+  PaginatedResponse,
+  Address
+} from '@/types';
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
   error?: string;
-  errors?: any[];
+  errors?: Record<string, string[]>;
 }
 
 class ApiService {
@@ -19,6 +35,7 @@ class ApiService {
       
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
+        credentials: 'include', // Include HTTP-only cookies
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -56,21 +73,15 @@ class ApiService {
   }
 
   // Authentication
-  async register(userData: { 
-    email: string; 
-    password: string; 
-    firstName: string; 
-    lastName: string;
-    phone?: string;
-  }) {
-    return this.request<{ user: any; token: string; refreshToken: string }>('/auth/register', {
+  async register(userData: RegisterData) {
+    return this.request<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
   }
 
-  async login(credentials: { email: string; password: string }) {
-    return this.request<{ user: any; token: string; refreshToken: string }>('/auth/login', {
+  async login(credentials: LoginCredentials) {
+    return this.request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -129,59 +140,52 @@ class ApiService {
         }
       });
     }
-    return this.request<{
-      products: any[];
-      total: number;
-      limit: number;
-      offset: number;
-      hasMore: boolean;
-      filters: any;
-    }>(`/products/search?${queryParams}`);
+    return this.request<SearchResult<Product> & { filters: Record<string, unknown> }>(`/products/search?${queryParams}`);
   }
 
   async getProduct(id: number) {
-    return this.request<{ product: any }>(`/products/${id}`);
+    return this.request<{ product: Product }>(`/products/${id}`);
   }
 
   async getRelatedProducts(id: number, limit = 4) {
-    return this.request<{ products: any[]; count: number }>(`/products/${id}/related?limit=${limit}`);
+    return this.request<{ products: Product[]; count: number }>(`/products/${id}/related?limit=${limit}`);
   }
 
   async getCategories() {
-    return this.request<{ categories: any[] }>('/products/categories');
+    return this.request<{ categories: ProductCategory[] }>('/products/categories');
   }
 
   async getSearchSuggestions(query: string, limit = 10) {
-    return this.request<{ suggestions: any[] }>(`/products/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`);
+    return this.request<{ suggestions: string[] }>(`/products/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`);
   }
 
   // Cart
   async getCart() {
-    return this.request<{ cart: any; authenticated: boolean }>('/cart');
+    return this.request<{ cart: Cart; authenticated: boolean }>('/cart');
   }
 
   async addToCart(productId: number, quantity = 1) {
-    return this.request<{ cart: any; message: string }>('/cart/items', {
+    return this.request<{ cart: Cart; message: string }>('/cart/items', {
       method: 'POST',
       body: JSON.stringify({ productId, quantity }),
     });
   }
 
   async updateCartItem(itemId: number, quantity: number) {
-    return this.request<{ cart: any; message: string }>(`/cart/items/${itemId}`, {
+    return this.request<{ cart: Cart; message: string }>(`/cart/items/${itemId}`, {
       method: 'PUT',
       body: JSON.stringify({ quantity }),
     });
   }
 
   async removeCartItem(itemId: number) {
-    return this.request<{ cart: any; message: string }>(`/cart/items/${itemId}`, {
+    return this.request<{ cart: Cart; message: string }>(`/cart/items/${itemId}`, {
       method: 'DELETE',
     });
   }
 
   async clearCart() {
-    return this.request<{ cart: any; message: string }>('/cart', {
+    return this.request<{ cart: Cart; message: string }>('/cart', {
       method: 'DELETE',
     });
   }
@@ -191,7 +195,7 @@ class ApiService {
   }
 
   async validateCart() {
-    return this.request<{ valid: boolean; cart: any; availability: any[] }>('/cart/validate', {
+    return this.request<{ valid: boolean; cart: Cart; availability: Array<{ productId: string; available: boolean; message?: string }> }>('/cart/validate', {
       method: 'POST',
     });
   }
@@ -210,40 +214,34 @@ class ApiService {
         }
       });
     }
-    return this.request<{
-      orders: any[];
-      total: number;
-      limit: number;
-      offset: number;
-      hasMore: boolean;
-    }>(`/orders?${queryParams}`);
+    return this.request<SearchResult<Order>>(`/orders?${queryParams}`);
   }
 
   async getOrder(orderId: number) {
-    return this.request<{ order: any }>(`/orders/${orderId}`);
+    return this.request<{ order: Order }>(`/orders/${orderId}`);
   }
 
   async createOrder(orderData: {
-    shippingAddress: any;
-    billingAddress?: any;
+    shippingAddress: Address;
+    billingAddress?: Address;
     paymentMethod?: string;
     customerNotes?: string;
   }) {
-    return this.request<{ order: any; message: string }>('/orders', {
+    return this.request<{ order: Order; message: string }>('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),
     });
   }
 
   async cancelOrder(orderId: number, reason?: string) {
-    return this.request<{ order: any; message: string }>(`/orders/${orderId}/cancel`, {
+    return this.request<{ order: Order; message: string }>(`/orders/${orderId}/cancel`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
   }
 
   async getOrderStats() {
-    return this.request<{ stats: any }>('/orders/stats');
+    return this.request<{ stats: { totalOrders: number; totalRevenue: number; averageOrderValue: number } }>('/orders/stats');
   }
 
   // User Account
@@ -287,11 +285,11 @@ class ApiService {
   }
 
   async verifyPayment(reference: string) {
-    return this.request<{ transaction: any }>(`/payments/verify/${reference}`);
+    return this.request<{ transaction: { status: string; amount: number; reference: string; currency: string } }>(`/payments/verify/${reference}`);
   }
 
   async getPaymentStatus(reference: string) {
-    return this.request<{ payment: any }>(`/payments/status/${reference}`);
+    return this.request<{ payment: { status: string; amount: number; reference: string; orderId: number } }>(`/payments/status/${reference}`);
   }
 }
 

@@ -1,7 +1,17 @@
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
-// Use the same JWT secret from .env
-const JWT_SECRET = 'BetterBeing2025SecureJWTKeyForDevelopment123456789';
+// Load environment variables
+dotenv.config();
+
+// SECURITY: Never hardcode secrets - use environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error('CRITICAL ERROR: JWT_SECRET environment variable not set');
+  console.error('Please create a .env file with JWT_SECRET configured');
+  process.exit(1);
+}
 
 // Create a test token for user ID 1 (john@test.com)
 const payload = {
@@ -15,3 +25,5 @@ const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 
 console.log('Test JWT Token:');
 console.log(token);
+console.log('\nTo use this token, include it in the Authorization header:');
+console.log(`Authorization: Bearer ${token}`);

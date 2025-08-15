@@ -1,12 +1,29 @@
-import paystack from 'paystack';
+import axios from 'axios';
 import pool from '../config/database.js';
 import OrderService from './order.service.js';
 import { AppError } from '../middleware/error-handler.js';
 
 class PaystackService {
   constructor() {
-    // Initialize Paystack with secret key
-    this.paystack = paystack(process.env.PAYSTACK_SECRET_KEY);
+    // SECURITY: Ensure required environment variables are set
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      throw new Error('PAYSTACK_SECRET_KEY environment variable is required');
+    }
+    if (!process.env.PAYSTACK_WEBHOOK_SECRET) {
+      throw new Error('PAYSTACK_WEBHOOK_SECRET environment variable is required');
+    }
+
+    // Initialize secure Paystack HTTP client
+    this.paystackClient = axios.create({
+      baseURL: 'https://api.paystack.co',
+      headers: {
+        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000, // 30 second timeout
+      maxRedirects: 5
+    });
+
     this.webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET;
   }
 
@@ -48,19 +65,10 @@ class PaystackService {
         channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
       };
 
-      // Initialize transaction with Paystack
-      const response = await new Promise((resolve, reject) => {
-        this.paystack.transaction.initialize(paymentData, (error, body) => {
-          if (error) {
-            console.error('Paystack initialization error:', error);
-            reject(new AppError('Payment initialization failed', 500, 'PAYMENT_INIT_FAILED'));
-          } else {
-            resolve(body);
-          }
-        });
-      });
+      // Initialize transaction with Paystack using secure HTTP client
+      const response = await this.paystackClient.post('/transaction/initialize', paymentData);
 
-      if (!response.status) {
+      if (!response.data || !response.data.status) {
         throw new AppError('Payment initialization failed', 500, 'PAYMENT_INIT_FAILED');
       }
 
@@ -76,12 +84,12 @@ class PaystackService {
       });
 
       // Update order payment reference
-      await OrderService.updatePaymentStatus(orderId, 'pending', response.data.reference);
+      await OrderService.updatePaymentStatus(orderId, 'pending', response.data.data.reference);
 
       return {
-        authorization_url: response.data.authorization_url,
-        access_code: response.data.access_code,
-        reference: response.data.reference,
+        authorization_url: response.data.data.authorization_url,
+        access_code: response.data.data.access_code,
+        reference: response.data.data.reference,
         paymentRecord
       };
 
@@ -94,27 +102,21 @@ class PaystackService {
   // Verify payment transaction
   async verifyPayment(reference) {
     try {
-      const response = await new Promise((resolve, reject) => {
-        this.paystack.transaction.verify(reference, (error, body) => {
-          if (error) {
-            console.error('Paystack verification error:', error);
-            reject(new AppError('Payment verification failed', 500, 'PAYMENT_VERIFY_FAILED'));
-          } else {
-            resolve(body);
-          }
-        });
-      });
+      const response = await this.paystackClient.get(`/transaction/verify/${reference}`);
 
-      if (!response.status) {
+      if (!response.data || !response.data.status) {
         throw new AppError('Payment verification failed', 500, 'PAYMENT_VERIFY_FAILED');
       }
 
-      const transaction = response.data;
+      const transaction = response.data.data;
       return transaction;
 
     } catch (error) {
       console.error('Payment verification error:', error);
-      throw error;
+      if (error.response && error.response.status === 404) {
+        throw new AppError('Transaction not found', 404, 'TRANSACTION_NOT_FOUND');
+      }
+      throw new AppError('Payment verification failed', 500, 'PAYMENT_VERIFY_FAILED');
     }
   }
 
@@ -372,22 +374,20 @@ class PaystackService {
         refundData.customer_note = reason;
       }
 
-      const response = await new Promise((resolve, reject) => {
-        this.paystack.refund.create(refundData, (error, body) => {
-          if (error) {
-            console.error('Paystack refund error:', error);
-            reject(new AppError('Refund creation failed', 500, 'REFUND_FAILED'));
-          } else {
-            resolve(body);
-          }
-        });
-      });
+      const response = await this.paystackClient.post('/refund', refundData);
 
-      return response.data;
+      if (!response.data || !response.data.status) {
+        throw new AppError('Refund creation failed', 500, 'REFUND_FAILED');
+      }
+
+      return response.data.data;
 
     } catch (error) {
       console.error('Refund creation error:', error);
-      throw error;
+      if (error.response) {
+        throw new AppError(`Refund failed: ${error.response.data.message}`, 500, 'REFUND_FAILED');
+      }
+      throw new AppError('Refund creation failed', 500, 'REFUND_FAILED');
     }
   }
 

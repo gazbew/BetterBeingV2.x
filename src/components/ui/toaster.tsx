@@ -7,8 +7,10 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+import { devLog } from "@/utils/logger"
 
 export function Toaster() {
+  devLog('Toaster: render start');
   const { toasts } = useToast()
 
   return (

@@ -1,15 +1,14 @@
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
-import '@fontsource/league-spartan/400.css'
-import '@fontsource/league-spartan/500.css'
-import '@fontsource/league-spartan/600.css'
-import '@fontsource/league-spartan/700.css'
-import '@fontsource/league-spartan/800.css'
-import '@fontsource/league-spartan/900.css'
-import '@fontsource/playfair-display/400.css'
-import '@fontsource/playfair-display/500.css'
-import '@fontsource/playfair-display/600.css'
-import '@fontsource/playfair-display/700.css'
+import { devLog } from './utils/logger'
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Debug: log when entrypoint runs (removed in production)
+devLog('main.tsx: createRoot render starting');
+createRoot(document.getElementById("root")!).render(
+	<BrowserRouter>
+		<App />
+	</BrowserRouter>
+);
+devLog('main.tsx: createRoot render called');

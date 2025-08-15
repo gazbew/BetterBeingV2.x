@@ -9,8 +9,14 @@ export const authenticateToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
+  // SECURITY: Ensure JWT_SECRET is properly configured
+  if (!process.env.JWT_SECRET) {
+    console.error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable not set');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Verify user exists in database
     const userQuery = 'SELECT id, email, first_name, last_name FROM users WHERE id = $1';
@@ -43,8 +49,15 @@ export const optionalAuth = async (req, res, next) => {
     return next();
   }
 
+  // SECURITY: Ensure JWT_SECRET is properly configured
+  if (!process.env.JWT_SECRET) {
+    console.error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable not set');
+    req.user = null;
+    return next();
+  }
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const userQuery = 'SELECT id, email, first_name, last_name FROM users WHERE id = $1';
     const userResult = await pool.query(userQuery, [decoded.id]);

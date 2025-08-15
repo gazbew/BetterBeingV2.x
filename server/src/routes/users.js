@@ -3,11 +3,25 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { setAuthCookie, clearAuthCookie } from '../middleware/cookie-auth.js';
+import {
+  validateUserRegistration,
+  validateUserLogin,
+  validateUserProfile,
+  handleValidationErrors,
+  authRateLimit,
+  xssProtection
+} from '../middleware/comprehensive-security.js';
 
 const router = express.Router();
 
-// User registration
-router.post('/register', async (req, res) => {
+// User registration with security validation
+router.post('/register', 
+  authRateLimit,
+  xssProtection,
+  validateUserRegistration,
+  handleValidationErrors,
+  async (req, res) => {
   const { email, password, firstName, lastName } = req.body;
   try {
     if (!email || !password || !firstName || !lastName) {
@@ -37,13 +51,26 @@ router.post('/register', async (req, res) => {
       'INSERT INTO users (email, password, first_name, last_name) VALUES ($1, $2, $3, $4) RETURNING id, email, first_name, last_name, created_at',
       [email, hashedPassword, firstName, lastName]
     );
+    // SECURITY: Ensure JWT_SECRET is properly configured
+    if (!process.env.JWT_SECRET) {
+      console.error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable not set');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server configuration error' 
+      });
+    }
+
     // Generate token
-    const token = jwt.sign({ id: newUser.rows[0].id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+    const token = jwt.sign({ id: newUser.rows[0].id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    
+    // Set secure HTTP-only cookie
+    setAuthCookie(res, token);
+    
     res.status(201).json({
       success: true,
       user: newUser.rows[0],
       tokens: {
-        accessToken: token,
+        accessToken: token, // Still provide for API clients
         refreshToken: token // For now, using same token
       }
     });
@@ -57,8 +84,13 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// User login
-router.post('/login', async (req, res) => {
+// User login with security validation
+router.post('/login',
+  authRateLimit,
+  xssProtection,
+  validateUserLogin,
+  handleValidationErrors,
+  async (req, res) => {
   const { email, password } = req.body;
   try {
     if (!email || !password) {
@@ -72,8 +104,21 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+    // SECURITY: Ensure JWT_SECRET is properly configured
+    if (!process.env.JWT_SECRET) {
+      console.error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable not set');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server configuration error' 
+      });
+    }
+
     // Generate token
-    const token = jwt.sign({ id: user.rows[0].id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+    const token = jwt.sign({ id: user.rows[0].id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    
+    // Set secure HTTP-only cookie
+    setAuthCookie(res, token);
+    
     res.json({
       user: {
         id: user.rows[0].id,
@@ -111,8 +156,49 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Update user profile
-router.put('/profile', authenticateToken, async (req, res) => {
+// Secure logout route
+router.post('/logout', (req, res) => {
+  try {
+    // Clear the secure HTTP-only cookie
+    clearAuthCookie(res);
+    
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Error during logout:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to logout' 
+    });
+  }
+});
+
+// Token verification route for cookie-based auth
+router.get('/verify', authenticateToken, async (req, res) => {
+  try {
+    // If we reach here, the token is valid (checked by middleware)
+    res.json({
+      success: true,
+      user: req.user
+    });
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to verify token' 
+    });
+  }
+});
+
+// Update user profile with security validation
+router.put('/profile', 
+  authenticateToken,
+  xssProtection,
+  validateUserProfile,
+  handleValidationErrors,
+  async (req, res) => {
   try {
     const userId = req.user.id;
     const { firstName, lastName, phone } = req.body;
@@ -140,12 +226,6 @@ router.put('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Verify token endpoint
-router.get('/verify', authenticateToken, (req, res) => {
-  res.json({ 
-    valid: true, 
-    user: req.user 
-  });
-});
+// Remove duplicate - already defined above
 
 export default router;

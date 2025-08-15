@@ -2,11 +2,14 @@
 
 import { Toaster as SonnerPrimitive } from "sonner"
 import { useTheme } from "next-themes"
+import { devLog } from "@/utils/logger"
 
 type ToasterProps = React.ComponentProps<typeof SonnerPrimitive>
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
+
+  devLog('Sonner Toaster: render start, theme=', theme);
 
   return (
     <SonnerPrimitive
