@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import path from "path";
 import tsconfigPaths from "vite-tsconfig-paths";
-// import { visualizer } from "rollup-plugin-visualizer";
+import { visualizer } from "rollup-plugin-visualizer";
 import { VitePWA } from 'vite-plugin-pwa';
 import viteImagemin from 'vite-plugin-imagemin';
 
@@ -176,15 +176,15 @@ const config = {
 config.plugins.push(tsconfigPaths());
 
 // Add bundle analyzer for production builds with ANALYZE=true
-// if (isProduction && process.env.ANALYZE) {
-//   config.plugins.push(
-//     visualizer({
-//       filename: 'dist/stats.html',
-//       open: true,
-//       gzipSize: true,
-//       brotliSize: true,
-//     })
-//   );
-// }
+if (isProduction && process.env.ANALYZE) {
+  config.plugins.push(
+    visualizer({
+      filename: 'dist/stats.html',
+      open: false, // Don't auto-open in headless environment
+      gzipSize: true,
+      brotliSize: true,
+    })
+  );
+}
 
 export default defineConfig(config);

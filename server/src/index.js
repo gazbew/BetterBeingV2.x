@@ -1,179 +1,150 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import pool from './config/database.js';
-import { cache } from './config/redis.js';
-import { runMigrations } from './config/migrate.js';
+import cron from 'node-cron';
 
-// Route imports
-import productsRouter from './routes/products.js';
-import optimizedProductsRouter from './routes/optimized-products.js';
-import ordersRouter from './routes/orders.js';
-import usersRouter from './routes/users.js';
-import cartRouter from './routes/cart.js';
-import checkoutRouter from './routes/checkout.js';
-import reviewsRouter from './routes/reviews.js';
-import recommendationsRouter from './routes/recommendations.js';
-import loyaltyRouter from './routes/loyalty.js';
+// Import routes
+import recommendationsRoutes from './routes/recommendations.js';
+import subscriptionsRoutes from './routes/subscriptions.js';
+import authMiddleware from './middleware/auth.js';
+import errorHandler from './middleware/errorHandler.js';
+import logger from './middleware/logger.js';
 
-// Middleware imports
-import { 
-  performanceMiddleware, 
-  requestIdMiddleware, 
-  createPerformanceRoutes,
-  createRateLimiter 
-} from './middleware/performance.js';
-import {
-  enhancedHelmet,
-  xssProtection,
-  securityHeaders,
-  apiRateLimit,
-  requestSizeLimits
-} from './middleware/comprehensive-security.js';
+// Import services
+import { generateDailyInsights } from './services/aiInsightsService.js';
 
-dotenv.config({ path: '../.env' });
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3001;
 
-// Enhanced security middleware
-app.use(enhancedHelmet);
-app.use(securityHeaders);
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow for development
+  crossOriginEmbedderPolicy: false
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    code: 'RATE_LIMIT_EXCEEDED'
+  }
+});
+
+app.use(limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Basic middleware with security limits
-app.use(express.json(requestSizeLimits.json));
-app.use(express.urlencoded(requestSizeLimits.urlencoded));
+// Body parsing middleware
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Cookie parser for secure authentication
-app.use(cookieParser());
+// Logging middleware
+app.use(logger);
 
-// XSS Protection for all routes
-app.use(xssProtection);
-
-// Performance middleware
-app.use(requestIdMiddleware);
-app.use(performanceMiddleware);
-
-// Enhanced rate limiting
-app.use('/api', apiRateLimit);
-
-// Initialize performance monitoring routes
-createPerformanceRoutes(app);
-
-// API Routes - Use optimized products route by default
-app.use('/api/products', optimizedProductsRouter);
-app.use('/api/products-legacy', productsRouter); // Keep legacy route for comparison
-app.use('/api/orders', ordersRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/auth', usersRouter); // Add auth alias for users routes
-app.use('/api/cart', cartRouter);
-app.use('/api/checkout', checkoutRouter);
-app.use('/api/reviews', reviewsRouter);
-app.use('/api/recommendations', recommendationsRouter);
-app.use('/api/loyalty', loyaltyRouter);
-
-// Enhanced error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error occurred:', {
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    requestId: req.id
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    service: 'Better Being Wellness API'
   });
-  
-  // Don't leak error details in production
-  const message = process.env.NODE_ENV === 'production' 
-    ? 'Internal server error' 
-    : err.message;
-    
-  res.status(err.status || 500).json({ 
-    error: message,
-    requestId: req.id
+});
+
+// API routes
+app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
+
+// Default route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Better Being Wellness API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      recommendations: '/api/recommendations',
+      subscriptions: '/api/subscriptions'
+    },
+    documentation: 'https://docs.betterbeing.com/api'
   });
 });
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ 
+app.use('*', (req, res) => {
+  res.status(404).json({
     error: 'Endpoint not found',
-    path: req.path,
-    method: req.method,
-    requestId: req.id
+    message: `The requested endpoint ${req.originalUrl} does not exist`,
+    availableEndpoints: [
+      'GET /health',
+      'GET /api/recommendations/daily',
+      'GET /api/recommendations/products',
+      'POST /api/recommendations/feedback',
+      'GET /api/recommendations/insights',
+      'GET /api/subscriptions/plans',
+      'GET /api/subscriptions/current',
+      'POST /api/subscriptions/subscribe'
+    ]
   });
 });
 
-// Initialize server
-const initializeServer = async () => {
-  try {
-    console.log('🚀 Initializing Better Being API Server...');
-    
-    // Run database migrations
-    if (process.env.AUTO_MIGRATE !== 'false') {
-      console.log('📋 Running database migrations...');
-      await runMigrations();
-    }
-    
-    // Connect to Redis (optional)
-    try {
-      await cache.connect();
-      console.log('✅ Redis cache connected');
-    } catch (error) {
-      console.warn('⚠️ Redis not available:', error.message);
-      console.log('🔄 Running without cache (performance may be reduced)');
-    }
-    
-    // Start server
-    const server = app.listen(PORT, () => {
-      console.log(`✅ Server running on port ${PORT}`);
-      console.log(`🌐 API Documentation: http://localhost:${PORT}/api/health`);
-      console.log(`📊 Performance Metrics: http://localhost:${PORT}/api/metrics`);
-      console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
-    
-    // Graceful shutdown
-    const gracefulShutdown = async (signal) => {
-      console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);
-      
-      server.close(async () => {
-        try {
-          await pool.end();
-          console.log('✅ Database connections closed');
-          
-          if (cache.isAvailable()) {
-            await cache.disconnect();
-            console.log('✅ Redis connection closed');
-          }
-          
-          console.log('👋 Server shutdown complete');
-          process.exit(0);
-        } catch (error) {
-          console.error('❌ Error during shutdown:', error.message);
-          process.exit(1);
-        }
-      });
-    };
-    
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-    
-  } catch (error) {
-    console.error('💥 Failed to initialize server:', error.message);
-    process.exit(1);
-  }
-};
+// Error handling middleware
+app.use(errorHandler);
 
-// Start the server
-initializeServer();
+// Scheduled tasks
+// Generate daily wellness insights at 6 AM
+cron.schedule('0 6 * * *', () => {
+  console.log('Running daily wellness insights generation...');
+  generateDailyInsights()
+    .then(() => console.log('Daily insights generated successfully'))
+    .catch(err => console.error('Error generating daily insights:', err));
+});
+
+// Weekly wellness trend analysis on Sundays at 8 AM
+cron.schedule('0 8 * * 0', () => {
+  console.log('Running weekly wellness trend analysis...');
+  // Implementation for weekly trends would go here
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
+    process.exit(0);
+  });
+});
+
+const server = app.listen(PORT, () => {
+  console.log(`
+🌟 Better Being Wellness API Server Started
+🔗 Server running on port ${PORT}
+🏥 Health check: http://localhost:${PORT}/health
+📋 API Base: http://localhost:${PORT}/api
+🧠 AI Recommendations: http://localhost:${PORT}/api/recommendations
+⏰ Environment: ${process.env.NODE_ENV || 'development'}
+  `);
+});
+
+export default app;

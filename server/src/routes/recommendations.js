@@ -1,453 +1,228 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth.js';
-import pool from '../config/database.js';
+import recommendationsController from '../controllers/recommendationsController.js';
+import authMiddleware from '../middleware/auth.js';
+import validationMiddleware from '../middleware/validation.js';
+import { 
+  subscriptionStatus, 
+  enforceUsageLimit, 
+  trackSubscriptionUsage,
+  requireFeatureAccess
+} from '../middleware/subscription.js';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
-// Get personalized recommendations for a user
-router.get('/personalized', authenticate, async (req, res) => {
-  try {
-    const { limit = 12, page = 1 } = req.query;
-    const offset = (page - 1) * limit;
-    const userId = req.user.id;
+// Rate limiting for recommendations endpoints
+const recommendationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 requests per windowMs
+  message: {
+    error: 'Too many recommendation requests from this IP, please try again later.',
+    code: 'RECOMMENDATION_RATE_LIMIT'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
-    // Get user's purchase history and preferences
-    const userDataQuery = `
-      SELECT 
-        p.category_id,
-        COUNT(*) as purchase_count,
-        AVG(oi.price) as avg_price
-      FROM orders o
-      JOIN order_items oi ON o.id = oi.order_id
-      JOIN products p ON oi.product_id = p.id
-      WHERE o.user_id = $1
-      GROUP BY p.category_id
-      ORDER BY purchase_count DESC
-    `;
+// Apply rate limiting to all recommendation routes
+router.use(recommendationLimiter);
 
-    const userData = await pool.query(userDataQuery, [userId]);
-    const preferredCategories = userData.rows.map(row => row.category_id);
-    const avgPriceRange = userData.rows[0]?.avg_price || 500;
+// Optional authentication middleware (allows both authenticated and demo users)
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // If auth header exists, validate it
+    return authMiddleware(req, res, next);
+  } else {
+    // No auth header, continue as demo user
+    req.user = { id: 'demo_user', role: 'demo' };
+    next();
+  }
+};
 
-    // Get products based on collaborative filtering
-    const collaborativeQuery = `
-      WITH user_purchases AS (
-        SELECT DISTINCT oi.product_id
-        FROM orders o
-        JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.user_id = $1
-      ),
-      similar_users AS (
-        SELECT o.user_id, COUNT(*) as common_products
-        FROM orders o
-        JOIN order_items oi ON o.id = oi.order_id
-        WHERE oi.product_id IN (SELECT product_id FROM user_purchases)
-        AND o.user_id != $1
-        GROUP BY o.user_id
-        ORDER BY common_products DESC
-        LIMIT 50
-      ),
-      recommended_products AS (
-        SELECT 
-          p.*,
-          COUNT(DISTINCT o.user_id) as purchase_count,
-          AVG(r.rating) as avg_rating,
-          'collaborative' as recommendation_type,
-          CASE 
-            WHEN p.category_id = ANY($2::int[]) THEN 0.9
-            ELSE 0.7
-          END * (COUNT(DISTINCT o.user_id)::float / 10) as confidence_score
-        FROM products p
-        JOIN order_items oi ON p.id = oi.product_id
-        JOIN orders o ON oi.order_id = o.id
-        LEFT JOIN reviews r ON p.id = r.product_id
-        WHERE o.user_id IN (SELECT user_id FROM similar_users)
-        AND p.id NOT IN (SELECT product_id FROM user_purchases)
-        AND p.stock_quantity > 0
-        AND p.active = true
-        GROUP BY p.id
-        HAVING COUNT(DISTINCT o.user_id) > 2
-      )
-      SELECT * FROM recommended_products
-      ORDER BY confidence_score DESC
-      LIMIT $3 OFFSET $4
-    `;
+/**
+ * @route GET /api/recommendations/daily
+ * @desc Get daily personalized wellness recommendations
+ * @access Public (with optional authentication)
+ * @params 
+ *   - mood (query): Current mood level (1-5)
+ *   - energy (query): Current energy level (1-5) 
+ *   - sleepQuality (query): Recent sleep quality (1-5)
+ *   - stressLevel (query): Current stress level (1-5)
+ *   - goals (query): Comma-separated wellness goals
+ * @example GET /api/recommendations/daily?mood=3&energy=2&stress=4&goals=improve_sleep,reduce_stress
+ */
+router.get('/daily', 
+  optionalAuth,
+  subscriptionStatus,
+  enforceUsageLimit('dailyRecommendations'),
+  trackSubscriptionUsage('daily_recommendation'),
+  validationMiddleware.validateDailyRecommendationQuery,
+  recommendationsController.getDailyRecommendations
+);
 
-    const collaborativeResults = await pool.query(
-      collaborativeQuery, 
-      [userId, preferredCategories, limit, offset]
-    );
+/**
+ * @route GET /api/recommendations/products
+ * @desc Get personalized product recommendations based on wellness profile
+ * @access Public (with optional authentication)
+ * @params
+ *   - limit (query): Number of products to return (max 20, default 8)
+ *   - category (query): Filter by product category
+ *   - mood, energy, sleepQuality, stressLevel (query): Current wellness metrics
+ * @example GET /api/recommendations/products?limit=10&category=adaptogens&mood=3
+ */
+router.get('/products',
+  optionalAuth,
+  validationMiddleware.validateProductRecommendationQuery,
+  recommendationsController.getProductRecommendations
+);
 
-    // Get content-based recommendations
-    const contentBasedQuery = `
-      WITH user_interests AS (
-        SELECT DISTINCT 
-          p.category_id,
-          p.tags
-        FROM orders o
-        JOIN order_items oi ON o.id = oi.order_id
-        JOIN products p ON oi.product_id = p.id
-        WHERE o.user_id = $1
-      ),
-      user_reviews AS (
-        SELECT product_id, rating
-        FROM reviews
-        WHERE user_id = $1
-        AND rating >= 4
-      )
-      SELECT 
-        p.*,
-        'content_based' as recommendation_type,
-        CASE 
-          WHEN p.category_id IN (SELECT category_id FROM user_interests) THEN 0.8
-          ELSE 0.6
-        END * (p.rating / 5) as confidence_score
-      FROM products p
-      WHERE (
-        p.category_id IN (SELECT category_id FROM user_interests)
-        OR p.tags && (SELECT array_agg(DISTINCT unnest(tags)) FROM user_interests)
-      )
-      AND p.id NOT IN (
-        SELECT oi.product_id 
-        FROM orders o 
-        JOIN order_items oi ON o.id = oi.order_id 
-        WHERE o.user_id = $1
-      )
-      AND p.stock_quantity > 0
-      AND p.active = true
-      AND ABS(p.price - $2) < $2 * 0.5  -- Within 50% of average price range
-      ORDER BY confidence_score DESC, p.rating DESC
-      LIMIT $3 OFFSET $4
-    `;
+/**
+ * @route POST /api/recommendations/feedback
+ * @desc Submit feedback on recommendations to improve AI
+ * @access Public (with optional authentication)
+ * @body
+ *   - recommendationId (required): ID of the recommendation
+ *   - rating (required): 1-5 star rating
+ *   - helpfulness (optional): How helpful was the recommendation (1-5)
+ *   - followed (optional): Whether user followed the recommendation (boolean)
+ *   - effectiveness (optional): How effective was the recommendation (1-5)
+ *   - comments (optional): Additional feedback text
+ */
+router.post('/feedback',
+  optionalAuth,
+  validationMiddleware.validateFeedbackBody,
+  recommendationsController.submitFeedback
+);
 
-    const contentBasedResults = await pool.query(
-      contentBasedQuery,
-      [userId, avgPriceRange, limit / 2, 0]
-    );
+/**
+ * @route GET /api/recommendations/insights
+ * @desc Get comprehensive AI-powered wellness insights and analytics
+ * @access Public (with optional authentication)
+ * @params
+ *   - timeframe (query): Analysis timeframe (7d, 30d, 90d, default: 30d)
+ *   - compare (query): Include benchmark comparison (true/false)
+ *   - mood, energy, sleepQuality, stressLevel (query): Current wellness metrics for analysis
+ * @example GET /api/recommendations/insights?timeframe=30d&compare=true&mood=4
+ */
+router.get('/insights',
+  authMiddleware,
+  subscriptionStatus,
+  requireFeatureAccess('advanced_analytics'),
+  trackSubscriptionUsage('premium_analytics'),
+  validationMiddleware.validateInsightsQuery,
+  recommendationsController.getWellnessInsights
+);
 
-    // Combine and deduplicate recommendations
-    const recommendations = [
-      ...collaborativeResults.rows,
-      ...contentBasedResults.rows
-    ];
+/**
+ * @route POST /api/recommendations/profile
+ * @desc Update user wellness profile data
+ * @access Public (with optional authentication)
+ * @body
+ *   - metrics (optional): Current wellness metrics object
+ *     - mood (1-5)
+ *     - energy (1-5) 
+ *     - sleepQuality (1-5)
+ *     - stressLevel (1-5)
+ *   - goals (optional): Array of wellness goal strings
+ *   - preferences (optional): User preferences object
+ */
+router.post('/profile',
+  optionalAuth,
+  validationMiddleware.validateProfileUpdate,
+  recommendationsController.updateWellnessProfile
+);
 
-    // Remove duplicates and sort by confidence
-    const uniqueRecommendations = recommendations.reduce((acc, curr) => {
-      if (!acc.find(item => item.id === curr.id)) {
-        acc.push(curr);
+// Health check endpoint for recommendations service
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    service: 'Recommendations API',
+    status: 'healthy',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: [
+      'GET /api/recommendations/daily',
+      'GET /api/recommendations/products', 
+      'POST /api/recommendations/feedback',
+      'GET /api/recommendations/insights',
+      'POST /api/recommendations/profile'
+    ],
+    aiServices: {
+      recommendationEngine: 'operational',
+      insightsAnalytics: 'operational',
+      feedbackLearning: 'operational'
+    }
+  });
+});
+
+// Demo data endpoint for testing and development
+router.get('/demo', (req, res) => {
+  res.status(200).json({
+    message: 'Better Being Recommendations Demo Data',
+    sampleRequests: {
+      dailyRecommendations: {
+        endpoint: '/api/recommendations/daily',
+        sampleQuery: '?mood=3&energy=2&sleepQuality=3&stressLevel=4&goals=improve_sleep,reduce_stress',
+        description: 'Get personalized daily wellness recommendations'
+      },
+      productRecommendations: {
+        endpoint: '/api/recommendations/products', 
+        sampleQuery: '?limit=5&mood=3&energy=2&category=adaptogens',
+        description: 'Get AI-curated product recommendations'
+      },
+      wellnessInsights: {
+        endpoint: '/api/recommendations/insights',
+        sampleQuery: '?timeframe=30d&compare=true&mood=4&energy=3',
+        description: 'Get comprehensive wellness analytics and insights'
       }
-      return acc;
-    }, []).sort((a, b) => b.confidence_score - a.confidence_score);
-
-    // Track recommendations for analytics
-    if (uniqueRecommendations.length > 0) {
-      const trackingValues = uniqueRecommendations.map(rec => 
-        `(${userId}, ${rec.id}, '${rec.recommendation_type}', ${rec.confidence_score})`
-      ).join(',');
-
-      await pool.query(`
-        INSERT INTO recommendation_impressions (user_id, product_id, type, confidence_score)
-        VALUES ${trackingValues}
-        ON CONFLICT DO NOTHING
-      `);
-    }
-
-    res.json({
-      recommendations: uniqueRecommendations.slice(0, limit),
-      total: uniqueRecommendations.length,
-      page: parseInt(page),
-      limit: parseInt(limit)
-    });
-  } catch (error) {
-    console.error('Error getting personalized recommendations:', error);
-    res.status(500).json({ error: 'Failed to get recommendations' });
-  }
+    },
+    wellnessMetrics: {
+      mood: 'Integer 1-5 (1=poor, 5=excellent)',
+      energy: 'Integer 1-5 (1=depleted, 5=high)',
+      sleepQuality: 'Integer 1-5 (1=terrible, 5=excellent)',
+      stressLevel: 'Integer 1-5 (1=minimal, 5=overwhelming)'
+    },
+    availableGoals: [
+      'improve_sleep',
+      'reduce_stress', 
+      'increase_energy',
+      'enhance_mood',
+      'better_focus',
+      'weight_management',
+      'immune_support',
+      'digestive_health'
+    ],
+    productCategories: [
+      'adaptogens',
+      'minerals', 
+      'vitamins',
+      'herbal_teas',
+      'essential_oils',
+      'mindfulness_tools',
+      'sleep_support',
+      'immunity_boosters'
+    ]
+  });
 });
 
-// Get trending products
-router.get('/trending', async (req, res) => {
-  try {
-    const { limit = 10, days = 7 } = req.query;
-
-    const query = `
-      SELECT 
-        p.*,
-        COUNT(DISTINCT oi.order_id) as order_count,
-        SUM(oi.quantity) as total_sold,
-        AVG(r.rating) as recent_rating
-      FROM products p
-      JOIN order_items oi ON p.id = oi.product_id
-      JOIN orders o ON oi.order_id = o.id
-      LEFT JOIN reviews r ON p.id = r.product_id 
-        AND r.created_at > NOW() - INTERVAL '${days} days'
-      WHERE o.created_at > NOW() - INTERVAL '${days} days'
-      AND p.stock_quantity > 0
-      AND p.active = true
-      GROUP BY p.id
-      HAVING COUNT(DISTINCT oi.order_id) > 3
-      ORDER BY order_count DESC, total_sold DESC
-      LIMIT $1
-    `;
-
-    const result = await pool.query(query, [limit]);
-
-    res.json({
-      trending: result.rows,
-      period_days: days
-    });
-  } catch (error) {
-    console.error('Error getting trending products:', error);
-    res.status(500).json({ error: 'Failed to get trending products' });
-  }
-});
-
-// Get frequently bought together
-router.get('/frequently-bought/:productId', async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { limit = 6 } = req.query;
-
-    const query = `
-      WITH product_orders AS (
-        SELECT DISTINCT order_id
-        FROM order_items
-        WHERE product_id = $1
-      )
-      SELECT 
-        p.*,
-        COUNT(*) as co_purchase_count,
-        COUNT(*)::float / (SELECT COUNT(*) FROM product_orders) as correlation_score
-      FROM products p
-      JOIN order_items oi ON p.id = oi.product_id
-      WHERE oi.order_id IN (SELECT order_id FROM product_orders)
-      AND p.id != $1
-      AND p.stock_quantity > 0
-      AND p.active = true
-      GROUP BY p.id
-      HAVING COUNT(*) > 2
-      ORDER BY co_purchase_count DESC
-      LIMIT $2
-    `;
-
-    const result = await pool.query(query, [productId, limit]);
-
-    res.json({
-      frequently_bought_together: result.rows
-    });
-  } catch (error) {
-    console.error('Error getting frequently bought together:', error);
-    res.status(500).json({ error: 'Failed to get frequently bought together' });
-  }
-});
-
-// Get similar products
-router.get('/similar/:productId', async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { limit = 8 } = req.query;
-
-    // Get the target product details
-    const productQuery = `
-      SELECT category_id, price, tags, subcategory_id
-      FROM products
-      WHERE id = $1
-    `;
-    
-    const productResult = await pool.query(productQuery, [productId]);
-    
-    if (productResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-
-    const product = productResult.rows[0];
-
-    // Find similar products
-    const similarQuery = `
-      SELECT 
-        p.*,
-        CASE 
-          WHEN p.subcategory_id = $2 THEN 3
-          WHEN p.category_id = $3 THEN 2
-          ELSE 1
-        END +
-        CASE 
-          WHEN ABS(p.price - $4) < 100 THEN 2
-          WHEN ABS(p.price - $4) < 500 THEN 1
-          ELSE 0
-        END +
-        CASE 
-          WHEN p.tags && $5::text[] THEN 2
-          ELSE 0
-        END as similarity_score
-      FROM products p
-      WHERE p.id != $1
-      AND (
-        p.category_id = $3
-        OR p.subcategory_id = $2
-        OR p.tags && $5::text[]
-      )
-      AND p.stock_quantity > 0
-      AND p.active = true
-      ORDER BY similarity_score DESC, p.rating DESC
-      LIMIT $6
-    `;
-
-    const result = await pool.query(similarQuery, [
-      productId,
-      product.subcategory_id,
-      product.category_id,
-      product.price,
-      product.tags || [],
-      limit
-    ]);
-
-    res.json({
-      similar_products: result.rows
-    });
-  } catch (error) {
-    console.error('Error getting similar products:', error);
-    res.status(500).json({ error: 'Failed to get similar products' });
-  }
-});
-
-// Get bundle recommendations
-router.get('/bundles', authenticate, async (req, res) => {
-  try {
-    const { limit = 5 } = req.query;
-    const userId = req.user.id;
-
-    // Get user's interests
-    const userInterestsQuery = `
-      SELECT DISTINCT category_id
-      FROM orders o
-      JOIN order_items oi ON o.id = oi.order_id
-      JOIN products p ON oi.product_id = p.id
-      WHERE o.user_id = $1
-    `;
-
-    const userInterests = await pool.query(userInterestsQuery, [userId]);
-    const categoryIds = userInterests.rows.map(row => row.category_id);
-
-    // Get bundle recommendations
-    const bundlesQuery = `
-      WITH bundle_products AS (
-        SELECT 
-          p1.id as product1_id,
-          p1.name as product1_name,
-          p1.price as product1_price,
-          p1.image_url as product1_image,
-          p2.id as product2_id,
-          p2.name as product2_name,
-          p2.price as product2_price,
-          p2.image_url as product2_image,
-          p3.id as product3_id,
-          p3.name as product3_name,
-          p3.price as product3_price,
-          p3.image_url as product3_image,
-          (p1.price + p2.price + p3.price) as total_price,
-          (p1.price + p2.price + p3.price) * 0.85 as bundle_price
-        FROM products p1
-        CROSS JOIN products p2
-        CROSS JOIN products p3
-        WHERE p1.category_id = ANY($1::int[])
-        AND p2.category_id = ANY($1::int[])
-        AND p3.category_id = ANY($1::int[])
-        AND p1.id < p2.id
-        AND p2.id < p3.id
-        AND p1.stock_quantity > 0
-        AND p2.stock_quantity > 0
-        AND p3.stock_quantity > 0
-        AND p1.active = true
-        AND p2.active = true
-        AND p3.active = true
-        ORDER BY (p1.rating + p2.rating + p3.rating) DESC
-        LIMIT $2
-      )
-      SELECT 
-        *,
-        (total_price - bundle_price) as savings
-      FROM bundle_products
-    `;
-
-    const result = await pool.query(bundlesQuery, [
-      categoryIds.length > 0 ? categoryIds : [1, 2, 3], // Default categories if no user history
-      limit
-    ]);
-
-    const bundles = result.rows.map((row, index) => ({
-      id: `bundle_${index + 1}`,
-      name: `Wellness Bundle ${index + 1}`,
-      products: [
-        {
-          id: row.product1_id,
-          name: row.product1_name,
-          price: row.product1_price,
-          image: row.product1_image
-        },
-        {
-          id: row.product2_id,
-          name: row.product2_name,
-          price: row.product2_price,
-          image: row.product2_image
-        },
-        {
-          id: row.product3_id,
-          name: row.product3_name,
-          price: row.product3_price,
-          image: row.product3_image
-        }
-      ],
-      original_price: row.total_price,
-      bundle_price: row.bundle_price,
-      savings: row.savings,
-      discount_percentage: 15
-    }));
-
-    res.json({
-      bundles
-    });
-  } catch (error) {
-    console.error('Error getting bundle recommendations:', error);
-    res.status(500).json({ error: 'Failed to get bundle recommendations' });
-  }
-});
-
-// Track recommendation clicks
-router.post('/track-click', authenticate, async (req, res) => {
-  try {
-    const { product_id, recommendation_type, position } = req.body;
-    const userId = req.user.id;
-
-    await pool.query(`
-      INSERT INTO recommendation_clicks 
-      (user_id, product_id, recommendation_type, position, clicked_at)
-      VALUES ($1, $2, $3, $4, NOW())
-    `, [userId, product_id, recommendation_type, position]);
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error tracking recommendation click:', error);
-    res.status(500).json({ error: 'Failed to track click' });
-  }
-});
-
-// Track recommendation conversions
-router.post('/track-conversion', authenticate, async (req, res) => {
-  try {
-    const { product_id, recommendation_type, order_id } = req.body;
-    const userId = req.user.id;
-
-    await pool.query(`
-      INSERT INTO recommendation_conversions 
-      (user_id, product_id, recommendation_type, order_id, converted_at)
-      VALUES ($1, $2, $3, $4, NOW())
-    `, [userId, product_id, recommendation_type, order_id]);
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error tracking recommendation conversion:', error);
-    res.status(500).json({ error: 'Failed to track conversion' });
-  }
+// Error handling for undefined routes
+router.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Recommendation endpoint not found',
+    message: `The endpoint ${req.originalUrl} does not exist in the recommendations API.`,
+    availableEndpoints: [
+      'GET /api/recommendations/daily',
+      'GET /api/recommendations/products',
+      'POST /api/recommendations/feedback', 
+      'GET /api/recommendations/insights',
+      'POST /api/recommendations/profile',
+      'GET /api/recommendations/health',
+      'GET /api/recommendations/demo'
+    ],
+    documentation: 'https://docs.betterbeing.com/api/recommendations'
+  });
 });
 
 export default router;
